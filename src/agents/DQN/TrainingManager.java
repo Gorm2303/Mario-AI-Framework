@@ -9,13 +9,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 import java.util.Random;
 
 public class TrainingManager {
     //Include necessary fields to hold references to the DQN agent (DQNAgent), the game environment, and any evaluation metrics.
     private static DQNAgent agent;
-    private MarioEnvironment environment;
     private static final MarioGame marioGame = new MarioGame();
 
     // Manages the training loop, allowing the agent to interact with the environment and learn.
@@ -28,17 +26,25 @@ public class TrainingManager {
         Random random = new Random();
 
         // Run the full game loop
-        for (int i = 0; i < episodes; i++) {
+        for (int i = 1; i < episodes; i++) {
             // Make a loop, which loops through each level until MarioResults isn't a WIN.
             System.out.println("Episode: " + i);
             for (int level = 1; level <= 15; level++) {
                 String levelName = getLevel("./././levels/original/lvl-" + (random.nextInt(14)+1) + ".txt");
                 MarioResult marioResult = marioGame.runGame(agent, levelName, timer, 0, true, 200);
-                double reward = analyzeResults(marioResult, level);
+                double reward = performanceMeasurement(marioResult, level);
                 totalReward += reward;
                 if (!marioResult.getGameStatus().equals(GameStatus.WIN)) {
                     break;
                 }
+            }
+            if (i%100 == 0) {
+                double score = evaluateAgent(2, 20);
+                // Save the model every saveInterval number of times learn is called
+                DateTimeFormatter dtf = DateTimeFormatter.ofPattern("ddMMyyyy");
+                String dateTime = LocalDateTime.now().format(dtf);
+                String modelPath = "savedModels/model_" + score + "pt_" + dateTime;
+                agent.saveModel(modelPath);
             }
         }
         return totalReward/episodes;
@@ -61,9 +67,9 @@ public class TrainingManager {
             // Make a loop, which loops through each level until MarioResults isn't a WIN.
             for (int level = 1; level <= 15; level++) {
                 String levelName = getLevel("./././levels/original/lvl-" + level + ".txt");
-                DQNAgent dqnAgent = new DQNAgent(agent,0.0,0.75,0.0,0.0, true);
+                DQNAgent dqnAgent = new DQNAgent(agent,0.0,0.05,0.0,0.0, true);
                 MarioResult marioResult = marioGame.runGame(dqnAgent, levelName, timer, 0, true, 200);
-                double reward = analyzeResults(marioResult, level);
+                double reward = performanceMeasurement(marioResult, level);
                 totalReward += reward;
                 if (!marioResult.getGameStatus().equals(GameStatus.WIN)) {
                     break;
@@ -75,13 +81,15 @@ public class TrainingManager {
         return totalReward/episodes;
     }
 
-    private static double analyzeResults(MarioResult marioResult, int level) {
+    private static double performanceMeasurement(MarioResult marioResult, int level) {
         float completionPercentage = marioResult.getCompletionPercentage();
         int getRemainingTime = marioResult.getRemainingTime() / 1000;
         double reward = 0.0;
         if (marioResult.getGameStatus().equals(GameStatus.WIN)) {
             reward = completionPercentage * 100 + getRemainingTime;
-        } else {
+        } else if (marioResult.getGameStatus().equals(GameStatus.LOSE)) {
+            reward = -getRemainingTime;
+        } else if (marioResult.getGameStatus().equals(GameStatus.TIME_OUT)) {
             reward = completionPercentage * 100;
         }
         printResults(marioResult);
@@ -107,17 +115,17 @@ public class TrainingManager {
 
     public static void main(String[] args) {
         agent = new DQNAgent(new DQNModel(523, 6, 0.05),
-                new ReplayBuffer(5000),
-                1,
+                new ReplayBuffer(500),
                 1,
                 0.05,
-                0.98,
+                0.45,
+                0.995,
                 50,
                 false);
 
         //agent.loadModel("savedModels/model_9.502851486206055pt_02012024");
 
-        trainAgent(5, 20);
+        trainAgent(4, 1000);
         double score = evaluateAgent(2, 10);
 
         // Save the model every saveInterval number of times learn is called
