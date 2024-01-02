@@ -1,6 +1,5 @@
 package agents.DQN;
 
-import engine.core.MarioAgent;
 import engine.core.MarioGame;
 import engine.core.MarioResult;
 import engine.helper.GameStatus;
@@ -8,6 +7,9 @@ import engine.helper.GameStatus;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 public class TrainingManager {
     //Include necessary fields to hold references to the DQN agent (DQNAgent), the game environment, and any evaluation metrics.
@@ -19,7 +21,7 @@ public class TrainingManager {
     //Set up a loop to run for a specified number of episodes.
     //Inside each episode, run a loop for a defined number of steps or until the end of an episode (game over).
     //At each step, let the agent choose an action, execute it in the environment, and provide feedback (reward, next state) to the agent.
-    public static void trainAgent(int timer, int episodes) {
+    public static double trainAgent(int timer, int episodes) {
         MarioGame marioGame = new MarioGame();
         double totalReward = 0.0;
 
@@ -45,6 +47,7 @@ public class TrainingManager {
 
         // Update training parameters if necessary (like epsilon decay)
         agent.updateEpsilon();
+        return evaluation;
     }
 
 
@@ -110,7 +113,7 @@ public class TrainingManager {
 
 
     public static void main(String[] args) {
-        agent = new DQNAgent(new DQNModel(),
+        agent = new DQNAgent(new DQNModel(10, 6),
                 new ReplayBuffer(1000),
                 1,
                 0.25,
@@ -118,7 +121,13 @@ public class TrainingManager {
                 0.001,
                 10);
 
-        trainAgent(20, 50);
+        double score = trainAgent(20, 10);
+        
+        // Save the model every saveInterval number of times learn is called
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern(Locale.getDefault().toString());
+        String dateTime = LocalDateTime.now().format(dtf);
+        String modelPath = "savedModels/model_" + score + "pt_" + dateTime;
+        agent.saveModel(modelPath);
     }
 
     public static void printResults(MarioResult result) {

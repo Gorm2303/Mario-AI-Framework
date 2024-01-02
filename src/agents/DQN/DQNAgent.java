@@ -1,5 +1,13 @@
 package agents.DQN;
 
+import org.deeplearning4j.datasets.iterator.utilty.ListDataSetIterator;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.dataset.DataSet;
+import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.dataset.api.preprocessor.DataNormalization;
+import org.nd4j.linalg.dataset.api.preprocessor.NormalizerStandardize;
+import org.nd4j.linalg.factory.Nd4j;
+
 import engine.core.MarioAgent;
 import engine.core.MarioForwardModel;
 import engine.core.MarioTimer;
@@ -147,8 +155,23 @@ public class DQNAgent implements MarioAgent {
             }
         }
 
-        // Update the DQN model with the states and target Q-values
-        model.train(states, targetQs);
+            // Convert arrays to INDArrays
+        INDArray statesINDArray = Nd4j.create(states);
+        INDArray targetQsINDArray = Nd4j.create(targetQs);
+
+        // Create a DataSet from the INDArrays
+        DataSet dataSet = new DataSet(statesINDArray, targetQsINDArray);
+
+        // Normalize the DataSet
+        DataNormalization normalizer = new NormalizerStandardize();
+        normalizer.fit(dataSet);           // Collect the statistics (mean/stdev) from the data. This does not modify the input data
+        normalizer.transform(dataSet);     // Apply normalization to the data. This modifies the input data
+
+        // Create a DataSetIterator from the DataSet
+        DataSetIterator dataSetIterator = new ListDataSetIterator<>(dataSet.asList());
+
+        // Train the model
+        model.train(dataSetIterator);        
     }
 
     private List<Integer> getActionIndices(boolean[] actionArray) {
@@ -173,12 +196,12 @@ public class DQNAgent implements MarioAgent {
 
     public void saveModel(String filePath) {
         // Code to save the model to the specified file path
-        // This will depend on the specific deep learning framework you are using
+        model.saveModel(filePath);
     }
 
     public void loadModel(String filePath) {
         // Code to load the model from the specified file path
-        // This will depend on the specific deep learning framework you are using
+        model.loadModel(filePath);
     }
 
     @Override

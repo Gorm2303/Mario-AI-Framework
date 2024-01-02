@@ -7,5 +7,7 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="deeplearning4j.core" level="project" />
+    <orderEntry type="library" name="nd4j.native.platform" level="project" />
   </component>
 </module>

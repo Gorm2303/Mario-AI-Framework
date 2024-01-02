@@ -1,129 +1,68 @@
 package agents.DQN;
 
-import org.tensorflow.Tensor;
-import org.tensorflow.Session;
-import org.tensorflow.Graph;
+import org.deeplearning4j.nn.api.OptimizationAlgorithm;
+import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
+import org.deeplearning4j.nn.conf.layers.DenseLayer;
+import org.deeplearning4j.nn.conf.layers.OutputLayer;
+import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.nn.weights.WeightInit;
+import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
+import org.deeplearning4j.util.ModelSerializer;
+import org.nd4j.linalg.activations.Activation;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.factory.Nd4j;
+import org.nd4j.linalg.learning.config.Adam;
+import org.nd4j.linalg.lossfunctions.LossFunctions;
 
-import java.nio.FloatBuffer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Arrays;
+import java.io.File;
+import java.io.IOException;
 
 public class DQNModel {
-    private Session session;
-    private Graph graph;
+    private MultiLayerNetwork model;
 
-    public DQNModel(String modelPath) {
-        // Load the TensorFlow model
-        this.graph = new Graph();
-        byte[] graphDef = Files.readAllBytes(Paths.get(modelPath));
-        graph.importGraphDef(graphDef);
-        this.session = new Session(graph);
+    public DQNModel(int inputSize, int outputSize) {
+        // Define the neural network configuration
+        NeuralNetConfiguration.ListBuilder config = new NeuralNetConfiguration.Builder()
+                .seed(123)
+                .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
+                .updater(new Adam(0.01))
+                .list()
+                .layer(0, new DenseLayer.Builder().nIn(inputSize).nOut(64).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
+                .layer(1, new DenseLayer.Builder().nIn(64).nOut(64).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
+                .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY).nIn(64).nOut(outputSize).build());
+
+        // Create the model
+        this.model = new MultiLayerNetwork(config.build());
+        this.model.init();
+        this.model.setListeners(new ScoreIterationListener(100));
     }
 
     public double[] predict(double[] state) {
-        // Convert the state to a TensorFlow Tensor
-        Tensor<Float> inputTensor = Tensor.create(new long[]{1, state.length}, FloatBuffer.wrap(arrayToFloatBuffer(state)));
-
-        // Run the model and get the output tensor
-        Tensor<Float> outputTensor = session.runner()
-                .feed("input_node", inputTensor) // 'input_node' should be the name of your input node in the model
-                .fetch("output_node") // 'output_node' should be the name of your output node in the model
-                .run()
-                .get(0)
-                .expect(Float.class);
-
-        // Extract the Q-values from the output tensor
-        float[][] qValuesArray = new float[1][(int) outputTensor.shape()[1]];
-        outputTensor.copyTo(qValuesArray);
-        inputTensor.close();
-        outputTensor.close();
-
-        // Convert float array to double array
-        return Arrays.stream(qValuesArray[0]).asDoubleStream().toArray();
+        INDArray input = Nd4j.create(state, new int[]{1, state.length});
+        INDArray output = model.output(input);
+        return output.toDoubleVector();
     }
 
-    private FloatBuffer arrayToFloatBuffer(double[] array) {
-        FloatBuffer buffer = FloatBuffer.allocate(array.length);
-        for (double value : array) {
-            buffer.put((float) value);
-        }
-        buffer.flip(); // Flip the buffer from writing mode to reading mode
-        return buffer;
+    public void train(DataSetIterator iterator) {
+        model.fit(iterator);
     }
 
-    // Helper methods to convert between arrays and tensors
-    // These methods will depend on the specific framework you're using
-    private Tensor<Float> convertArrayToTensor(double[] array) {
-        // Assuming a 1D input. For multi-dimensional input, reshape accordingly.
-        float[] floatArray = new float[array.length];
-        for (int i = 0; i < array.length; i++) {
-            floatArray[i] = (float) array[i];
-        }
-        // Creating a 2D tensor where the first dimension is the batch size (1 in this case)
-        return Tensor.create(new long[]{1, array.length}, FloatBuffer.wrap(floatArray));
-    }
-
-
-    private double[] convertTensorToArray(Tensor<Float> tensor) {
-        // Assuming a 1D output. For multi-dimensional output, adjust accordingly.
-        float[] floatArray = new float[(int) tensor.shape()[1]]; // Assuming the first dimension is the batch size
-        tensor.copyTo(floatArray);
-        return Arrays.stream(floatArray).asDoubleStream().toArray();
-    }
-
-
-    public void train(double[][] states, double[][] targetQs) {
-        // Convert states and targetQs to Tensors
-        Tensor<Float> statesTensor = Tensor.create(states, Float.class);
-        Tensor<Float> targetQsTensor = Tensor.create(targetQs, Float.class);
-
-        // Perform the training operation
-        try {
-            session.runner()
-                    .feed("input_node", statesTensor)  // 'input_node' should match your model's input placeholder
-                    .feed("targetQs_node", targetQsTensor)  // 'targetQs_node' is the placeholder for target Q-values
-                    .addTarget("train_op")  // 'train_op' is the operation name for training (optimization)
-                    .run();
-        } finally {
-            statesTensor.close();
-            targetQsTensor.close();
-        }
-    }
-
-    // Methods to save and load the model
     public void saveModel(String filePath) {
-        // Code to save the neural network weights to filePath
+        File file = new File(filePath);
+        try {
+            ModelSerializer.writeModel(model, file, true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void loadModel(String filePath) {
-        // Code to load neural network weights from filePath
+        File file = new File(filePath);
+        try {
+            this.model = ModelSerializer.restoreMultiLayerNetwork(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
-
-    //Input layer (game state size), hidden layers, output layer (number of possible actions), activation functions.
-
-
-    //Input Layer
-    //Determine the dimensions of the game state representation (e.g., array size).
-    //The input layer of your network should have neurons equal to the number of elements in the game state representation.
-
-
-    //Hidden Layers Configuration
-    //Decide on the number of hidden layers and the number of neurons in each layer.
-    //Consider using a standard architecture (e.g., two hidden layers with 64 neurons each) or experiment with different configurations.
-
-
-    //Output Layer
-    //The output layer should have a neuron for each possible action the agent can take.
-    //If the game has N possible actions, the output layer should have N neurons.
-
-
-    //Activation Functions
-    //Use activation functions like ReLU (Rectified Linear Unit) for the hidden layers to introduce non-linearity.
-    //For the output layer, consider softmax for a probabilistic approach or linear activation for value approximation.
-
-
-    //Define the loss function (usually mean squared error for Q-learning).
-    //Choose an optimizer (like Adam or RMSprop).
-    //Compile the model with these settings.
 }
