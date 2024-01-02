@@ -10,11 +10,13 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
+import java.util.Random;
 
 public class TrainingManager {
     //Include necessary fields to hold references to the DQN agent (DQNAgent), the game environment, and any evaluation metrics.
     private static DQNAgent agent;
     private MarioEnvironment environment;
+    private static final MarioGame marioGame = new MarioGame();
 
     // Manages the training loop, allowing the agent to interact with the environment and learn.
     // Manage the training loop (episodes, steps per episode).
@@ -22,14 +24,15 @@ public class TrainingManager {
     //Inside each episode, run a loop for a defined number of steps or until the end of an episode (game over).
     //At each step, let the agent choose an action, execute it in the environment, and provide feedback (reward, next state) to the agent.
     public static double trainAgent(int timer, int episodes) {
-        MarioGame marioGame = new MarioGame();
         double totalReward = 0.0;
+        Random random = new Random();
 
         // Run the full game loop
         for (int i = 0; i < episodes; i++) {
             // Make a loop, which loops through each level until MarioResults isn't a WIN.
+            System.out.println("Episode: " + i);
             for (int level = 1; level <= 15; level++) {
-                String levelName = getLevel("./././levels/original/lvl-" + level + ".txt");
+                String levelName = getLevel("./././levels/original/lvl-" + (random.nextInt(14)+1) + ".txt");
                 MarioResult marioResult = marioGame.runGame(agent, levelName, timer, 0, true, 200);
                 double reward = analyzeResults(marioResult, level);
                 totalReward += reward;
@@ -38,18 +41,8 @@ public class TrainingManager {
                 }
             }
         }
-
-        // Periodically update the agent's learning
-        agent.learn();
-
-        // Periodically evaluate the agent
-        double evaluation = evaluateAgent(episodes/10, 20);
-
-        // Update training parameters if necessary (like epsilon decay)
-        agent.updateEpsilon();
-        return evaluation;
+        return totalReward/episodes;
     }
-
 
     //Agent-Environment Interaction
     //Handle interactions between the agent and the environment during training.
@@ -62,20 +55,14 @@ public class TrainingManager {
     //Similar to the training loop, but without the learning steps (no updates to the network).
     //Track the agent's performance (e.g., total reward per episode) to evaluate its learning progress.
     public static double evaluateAgent(int episodes, int timer) {
-        MarioGame marioGame = new MarioGame();
         double totalReward = 0.0;
 
         for (int i = 0; i < episodes; i++) {
             // Make a loop, which loops through each level until MarioResults isn't a WIN.
             for (int level = 1; level <= 15; level++) {
                 String levelName = getLevel("./././levels/original/lvl-" + level + ".txt");
-                MarioResult marioResult = marioGame.runGame(new DQNAgent(
-                        agent,
-                        0.0,
-                        0.25,
-                        0.0,
-                        0.0),
-                        levelName, timer, 0, true, 200);
+                DQNAgent dqnAgent = new DQNAgent(agent,0.0,0.75,0.0,0.0, true);
+                MarioResult marioResult = marioGame.runGame(dqnAgent, levelName, timer, 0, true, 200);
                 double reward = analyzeResults(marioResult, level);
                 totalReward += reward;
                 if (!marioResult.getGameStatus().equals(GameStatus.WIN)) {
@@ -83,16 +70,22 @@ public class TrainingManager {
                 }
             }
         }
-        System.out.println("Total reward is: " + totalReward);
+        System.out.println("Reward mean is: " + totalReward);
+
         return totalReward/episodes;
     }
 
     private static double analyzeResults(MarioResult marioResult, int level) {
         float completionPercentage = marioResult.getCompletionPercentage();
-        int getRemainingTime = marioResult.getRemainingTime();
-        double reward = completionPercentage * 100 + getRemainingTime + 10 * level;
+        int getRemainingTime = marioResult.getRemainingTime() / 1000;
+        double reward = 0.0;
+        if (marioResult.getGameStatus().equals(GameStatus.WIN)) {
+            reward = completionPercentage * 100 + getRemainingTime;
+        } else {
+            reward = completionPercentage * 100;
+        }
         printResults(marioResult);
-        System.out.println("Reward for " + marioResult.getGameStatus().toString() + " level " + level + ": " + reward);
+        System.out.println("*Training* Reward for " + marioResult.getGameStatus().toString() + " level " + level + ": " + reward);
         return reward;
     }
 
@@ -113,21 +106,26 @@ public class TrainingManager {
 
 
     public static void main(String[] args) {
-        agent = new DQNAgent(new DQNModel(10, 6),
-                new ReplayBuffer(1000),
+        agent = new DQNAgent(new DQNModel(523, 6, 0.05),
+                new ReplayBuffer(5000),
                 1,
-                0.25,
-                0.005,
-                0.001,
-                10);
+                1,
+                0.05,
+                0.98,
+                50,
+                false);
 
-        double score = trainAgent(20, 10);
-        
+        //agent.loadModel("savedModels/model_9.502851486206055pt_02012024");
+
+        trainAgent(5, 20);
+        double score = evaluateAgent(2, 10);
+
         // Save the model every saveInterval number of times learn is called
-        DateTimeFormatter dtf = DateTimeFormatter.ofPattern(Locale.getDefault().toString());
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("ddMMyyyy");
         String dateTime = LocalDateTime.now().format(dtf);
         String modelPath = "savedModels/model_" + score + "pt_" + dateTime;
         agent.saveModel(modelPath);
+        agent.verifySavedAndLoadable(modelPath, agent.getMarioEnvironment().getGameState());
     }
 
     public static void printResults(MarioResult result) {

@@ -17,20 +17,24 @@ import org.nd4j.linalg.lossfunctions.LossFunctions;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 
 public class DQNModel {
     private MultiLayerNetwork model;
+    private double learningRate;
+    private Adam adam;
 
-    public DQNModel(int inputSize, int outputSize) {
+    public DQNModel(int inputSize, int outputSize, double learnRate) {
+        adam = new Adam(learnRate);
         // Define the neural network configuration
         NeuralNetConfiguration.ListBuilder config = new NeuralNetConfiguration.Builder()
                 .seed(123)
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
-                .updater(new Adam(0.01))
+                .updater(adam)
                 .list()
-                .layer(0, new DenseLayer.Builder().nIn(inputSize).nOut(64).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
-                .layer(1, new DenseLayer.Builder().nIn(64).nOut(64).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
-                .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY).nIn(64).nOut(outputSize).build());
+                .layer(0, new DenseLayer.Builder().nIn(inputSize).nOut(256).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
+                .layer(1, new DenseLayer.Builder().nIn(256).nOut(256).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
+                .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY).nIn(256).nOut(outputSize).build());
 
         // Create the model
         this.model = new MultiLayerNetwork(config.build());
@@ -64,5 +68,18 @@ public class DQNModel {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void verifySavedAndLoadable(String filePath, double[] testStateInput) {
+        saveModel(filePath);
+        System.out.println("Model Saved");
+        loadModel(filePath);
+        System.out.println("Model Loaded");
+        double[] prediction = predict(testStateInput);
+        System.out.println("Model made a prediction: " + Arrays.toString(prediction));
+    }
+
+    public void setLearningRate(double learnRate) {
+        adam.setLearningRate(learnRate);
     }
 }

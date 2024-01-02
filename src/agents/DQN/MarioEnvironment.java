@@ -5,10 +5,12 @@ import engine.helper.GameStatus;
 import engine.helper.MarioActions;
 
 import java.util.Arrays;
+import java.util.Comparator;
 
 public class MarioEnvironment {
     private final MarioForwardModel currentModel;
     private double[] currentState;
+    private double gameStatus;
 
     public MarioEnvironment(MarioForwardModel currentModel) {
         this.currentModel = currentModel;
@@ -24,8 +26,6 @@ public class MarioEnvironment {
         float[] marioPos = currentModel.getMarioFloatPos();
         float[] marioVel = currentModel.getMarioFloatVelocity();
 
-        // Get game status information
-        GameStatus status = currentModel.getGameStatus();
         int remainingTime = currentModel.getRemainingTime();
         float completionPercentage = currentModel.getCompletionPercentage();
 
@@ -39,9 +39,8 @@ public class MarioEnvironment {
         float[] enemiesPos = currentModel.getEnemiesFloatPos(); // This is an array containing type, x, and y for each enemy
 
         // Get the 2D grid observations around Mario (you can choose the level of detail)
-        int[][] marioSceneObservation = currentModel.getMarioSceneObservation(1); // Detail level 1
-        int[][] marioEnemiesObservation = currentModel.getMarioEnemiesObservation(0); // Detail level 0
-
+        int[][] screenEnemiesObservation = currentModel.getScreenEnemiesObservation(); // Detail level 1
+        int[][] screenSceneObservation = currentModel.getScreenSceneObservation(0); // Detail level 1
 
         // Convert this information into a numerical format (array or tensor)
         // Mario's position
@@ -55,33 +54,22 @@ public class MarioEnvironment {
                 marioMode,
                 remainingTime,
                 completionPercentage,
+                getGameStatus()
         };
 
-        int numEnemiesToInclude = enemiesPos.length/3;
-        int valuesPerEnemy = 3; // type, x, y
-        for (int i = 0; i < numEnemiesToInclude * valuesPerEnemy; i++) {
-            if (i < enemiesPos.length) {
-                gameState = Arrays.copyOf(gameState, gameState.length + 1);
-                gameState[gameState.length - 1] = enemiesPos[i];
-            } else {
-                // Pad with zeros if there are fewer enemies
-                gameState = Arrays.copyOf(gameState, gameState.length + 1);
-                gameState[gameState.length - 1] = 0.0;
-            }
-        }
+        // Flatten the 2D arrays (screenSceneObservation and marioEnemiesObservation) and add them to gameState
+        gameState = flatten2DArray(screenEnemiesObservation, gameState);
+        gameState = flatten2DArray(screenSceneObservation, gameState);
 
-        // Flatten the 2D arrays (marioSceneObservation and marioEnemiesObservation) and add them to gameState
-        gameState = flatten2DArray(marioSceneObservation, gameState);
-        gameState = flatten2DArray(marioEnemiesObservation, gameState);
-
+        currentState = gameState;
         return gameState;
     }
 
     private double[] flatten2DArray(int[][] marioObservation, double[] gameState) {
-        for (int i = 0; i < marioObservation.length; i++) {
-            for (int j = 0; j < marioObservation[i].length; j++) {
+        for (int[] ints : marioObservation) {
+            for (int anInt : ints) {
                 gameState = Arrays.copyOf(gameState, gameState.length + 1);
-                gameState[gameState.length - 1] = marioObservation[i][j];
+                gameState[gameState.length - 1] = anInt;
             }
         }
         return gameState;
@@ -112,5 +100,17 @@ public class MarioEnvironment {
 
     public MarioForwardModel getCurrentModel() {
         return currentModel;
+    }
+
+    public double getGameStatus() {
+        GameStatus status = currentModel.getGameStatus();
+        if (status.equals(GameStatus.WIN)) {
+            gameStatus = 1;
+        } else if (status.equals(GameStatus.LOSE) || status.equals(GameStatus.TIME_OUT)) {
+            gameStatus = 0;
+        } else {
+            gameStatus = currentModel.getCompletionPercentage();
+        }
+        return gameStatus;
     }
 }
