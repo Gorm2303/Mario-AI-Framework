@@ -1,6 +1,7 @@
 package agents.DQN;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
@@ -8,13 +9,13 @@ public class ReplayBuffer {
 
     //Store tuples of (state, action, reward, next state, done). Implement methods for adding experiences and sampling a batch of experiences for training.
     private final int capacity;
-    private final List<Experience> buffer;
+    private final LinkedList<Experience> buffer;
     private int insertIndex;
     private final Random random;
 
     public ReplayBuffer(int capacity) {
         this.capacity = capacity;
-        this.buffer = new ArrayList<>();
+        this.buffer = new LinkedList<>();
         this.insertIndex = 0;
         this.random = new Random();
     }
@@ -29,7 +30,8 @@ public class ReplayBuffer {
         if (buffer.size() < capacity) {
             buffer.add(experience);
         } else {
-            buffer.set(insertIndex, experience);
+            buffer.removeFirst();
+            buffer.addLast(experience);
         }
         insertIndex = (insertIndex + 1) % capacity;
     }

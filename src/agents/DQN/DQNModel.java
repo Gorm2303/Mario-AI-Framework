@@ -32,9 +32,9 @@ public class DQNModel {
                 .optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT)
                 .updater(adam)
                 .list()
-                .layer(0, new DenseLayer.Builder().nIn(inputSize).nOut(256).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
-                .layer(1, new DenseLayer.Builder().nIn(256).nOut(256).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
-                .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY).nIn(256).nOut(outputSize).build());
+                .layer(0, new DenseLayer.Builder().nIn(inputSize).nOut(64).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
+                .layer(1, new DenseLayer.Builder().nIn(64).nOut(64).weightInit(WeightInit.XAVIER).activation(Activation.RELU).build())
+                .layer(2, new OutputLayer.Builder(LossFunctions.LossFunction.MSE).activation(Activation.IDENTITY).nIn(64).nOut(outputSize).build());
 
         // Create the model
         this.model = new MultiLayerNetwork(config.build());
@@ -45,6 +45,7 @@ public class DQNModel {
     public double[] predict(double[] state) {
         INDArray input = Nd4j.create(state, new int[]{1, state.length});
         INDArray output = model.output(input);
+        //System.out.println("Model made a prediction: " + Arrays.toString(output.toDoubleVector()));
         return output.toDoubleVector();
     }
 

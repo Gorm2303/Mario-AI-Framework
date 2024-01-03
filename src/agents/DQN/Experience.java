@@ -2,8 +2,6 @@ package agents.DQN;
 
 import engine.helper.GameStatus;
 
-import java.util.Arrays;
-
 public class Experience {
     private double[] state;
     private boolean[] action;
@@ -12,6 +10,7 @@ public class Experience {
     private double gameStatus;
     private float completionPercentage;
     private int remainingTime;
+
 
     public Experience(double[] state, boolean[] action, double reward, double[] nextState, double gameStatus, float completionPercentage, int remainingTime) {
         this.state = state;
@@ -57,10 +56,5 @@ public class Experience {
 
     public void setNextState(double[] nextState) {
         this.nextState = nextState;
-    }
-
-    public void print() {
-        System.out.println("Action: " + Arrays.toString(action));
-        System.out.println("Reward: " + reward);
     }
 }

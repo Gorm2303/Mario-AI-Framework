@@ -39,8 +39,7 @@ public class MarioEnvironment {
         float[] enemiesPos = currentModel.getEnemiesFloatPos(); // This is an array containing type, x, and y for each enemy
 
         // Get the 2D grid observations around Mario (you can choose the level of detail)
-        int[][] screenEnemiesObservation = currentModel.getScreenEnemiesObservation(); // Detail level 1
-        int[][] screenSceneObservation = currentModel.getScreenSceneObservation(0); // Detail level 1
+        int[][] screenEnemiesObservation = currentModel.getScreenCompleteObservation(0,0); // Detail level
 
         // Convert this information into a numerical format (array or tensor)
         // Mario's position
@@ -59,7 +58,6 @@ public class MarioEnvironment {
 
         // Flatten the 2D arrays (screenSceneObservation and marioEnemiesObservation) and add them to gameState
         gameState = flatten2DArray(screenEnemiesObservation, gameState);
-        gameState = flatten2DArray(screenSceneObservation, gameState);
 
         currentState = gameState;
         return gameState;

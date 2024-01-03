@@ -1,6 +1,7 @@
 package agents.DQN;
 
 import engine.helper.GameStatus;
+import org.bytedeco.libfreenect._freenect_context;
 import org.deeplearning4j.datasets.iterator.utilty.ListDataSetIterator;
 import org.nd4j.linalg.api.ndarray.INDArray;
 import org.nd4j.linalg.dataset.DataSet;
@@ -23,14 +24,14 @@ public class DQNAgent implements MarioAgent {
 
     //Declare a field for the neural network model (DQNModel).
     //Declare a field for the replay memory (ReplayBuffer).
+    private double epsilon;
     private final DQNModel model;
     private final ReplayBuffer replayBuffer;
     private final Random random;
     private MarioEnvironment marioEnvironment;
     private final double gamma; // discount factor
-    private double epsilon;
-    private double minEpsilon;
-    private double epsilonDecayRate;
+    private final double minEpsilon;
+    private final double epsilonDecayRate;
     private final int batchSize;
     private Experience latestExperience;
     private boolean evaluate;
@@ -67,11 +68,12 @@ public class DQNAgent implements MarioAgent {
         marioEnvironment = new MarioEnvironment(model);
         double[] currentState = marioEnvironment.getGameState();
 
-        // Periodically update the agent's
-        counter++;
-        if (counter > 50 && !evaluate) {
-            learn();
-            counter = 0;
+        // Periodically update the agent's experience
+        if (!evaluate) {
+            experience();
+            if (random.nextDouble() > 0.984) {
+                learn();
+            }
         }
 
         // Select actions based on the current state using the epsilon-greedy strategy
@@ -85,10 +87,10 @@ public class DQNAgent implements MarioAgent {
         boolean[] actions = new boolean[MarioActions.numberOfActions()+1];
         if (random.nextDouble() < epsilon) {
             // Exploration: choose a random action
-            //for (int i = 0; i < numberOfRandomActions(); i++) {
-            int randomActionIndex = random.nextInt(MarioActions.numberOfActions());
-            actions[randomActionIndex] = true; // Set the action to true
-            //}
+            for (int i = 0; i < numberOfRandomActions(); i++) {
+                int randomActionIndex = random.nextInt(MarioActions.numberOfActions());
+                actions[randomActionIndex] = true; // Set the action to true
+            }
         } else {
             // Exploitation: choose the best action based on the model's prediction
             double[] qValues = model.predict(state);
@@ -105,7 +107,7 @@ public class DQNAgent implements MarioAgent {
         double rand = random.nextDouble();
         if (rand < 0.33) {
             return 1; // 17% chance to choose 1 action
-        } else if (rand < 0.33+0.33) {
+        } else if (rand < (0.33+0.33)) {
             return 2; // 33% chance to choose 2 actions
         } else {
             return 3; // Remaining 50% chance to choose 3 actions
@@ -122,11 +124,7 @@ public class DQNAgent implements MarioAgent {
         return maxIndex;
     }
 
-    //Implement Learning Method
-    public void learn() {
-        //This method should handle transitions: store experiences in the replay buffer.
-        //Sample a batch of experiences from the buffer.
-        //Use these experiences to update the Q-values via the neural network.
+    private void experience() {
         Experience experience = new Experience(marioEnvironment.getGameState(),
                 selectAction(marioEnvironment.getGameState()),
                 0,
@@ -140,6 +138,13 @@ public class DQNAgent implements MarioAgent {
             storeExperience(latestExperience);
         }
         latestExperience = experience;
+    }
+
+    //Implement Learning Method
+    public void learn() {
+        //This method should handle transitions: store experiences in the replay buffer.
+        //Sample a batch of experiences from the buffer.
+        //Use these experiences to update the Q-values via the neural network.
 
         if (replayBuffer.size() < batchSize) {
             return; // Don't learn until the buffer has enough samples
@@ -161,7 +166,6 @@ public class DQNAgent implements MarioAgent {
         // Populate the arrays with sampled experience data
         for (int i = 0; i < batchSize; i++) {
             Experience batchExperience = batch.get(i);
-            //batchExperience.print();
             states[i] = batchExperience.getState();
             nextStates[i] = batchExperience.getNextState();
             rewards[i] = batchExperience.getReward();
@@ -201,11 +205,7 @@ public class DQNAgent implements MarioAgent {
 
     private double calculateReward(Experience lastExp, Experience exp) {
         double reward;
-        if ((exp.getCompletionPercentage() - lastExp.getCompletionPercentage()) > 0) {
-            reward = ((exp.getCompletionPercentage() - lastExp.getCompletionPercentage()) * 100) / (lastExp.getRemainingTime() - exp.getRemainingTime());
-        } else {
-            reward = ((exp.getCompletionPercentage() - lastExp.getCompletionPercentage()) * 100) / -(lastExp.getRemainingTime() - exp.getRemainingTime());
-        }
+        reward = ((exp.getCompletionPercentage() - lastExp.getCompletionPercentage()) * 100) / (lastExp.getRemainingTime() - exp.getRemainingTime());
         System.out.println("*Experiencing* Reward for " + marioEnvironment.getCurrentModel().getGameStatus().toString() + ": " + reward);
         return reward;
     }
@@ -220,12 +220,6 @@ public class DQNAgent implements MarioAgent {
         return indices; // Return the list of indices
     }
 
-    public Experience storeExperience(double[] state, boolean[] action, double reward, double[] nextState, double gameStatus, float completionPercentage, int remainingTime) {
-        Experience experience = new Experience(state, action, reward, nextState, gameStatus, completionPercentage, remainingTime);
-        storeExperience(experience);
-        return experience;
-    }
-
     public Experience storeExperience(Experience experience) {
         replayBuffer.add(experience);
         return experience;
@@ -234,7 +228,6 @@ public class DQNAgent implements MarioAgent {
     public void updateEpsilon() {
         // Reduce epsilon, but not below the minimum value
         epsilon = Math.max(minEpsilon, epsilon * epsilonDecayRate);
-        System.out.println("*Update epsilon* " + epsilon);
     }
 
     public void saveModel(String filePath) {
@@ -258,22 +251,6 @@ public class DQNAgent implements MarioAgent {
 
     public MarioEnvironment getMarioEnvironment() {
         return marioEnvironment;
-    }
-
-    public void setEpsilon(double epsilon) {
-        this.epsilon = epsilon;
-    }
-
-    public void setMinEpsilon(double minEpsilon) {
-        this.minEpsilon = minEpsilon;
-    }
-
-    public void setEpsilonDecayRate(double epsilonDecayRate) {
-        this.epsilonDecayRate = epsilonDecayRate;
-    }
-
-    public void setEvaluate(boolean evaluate) {
-        this.evaluate = evaluate;
     }
 
     //The Q-value update mechanism
