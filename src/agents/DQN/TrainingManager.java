@@ -19,7 +19,6 @@ public class TrainingManager {
     private static final MarioGame marioGame = new MarioGame();
 
     // Manages the training loop, allowing the agent to interact with the environment and learn.
-    // Manage the training loop (episodes, steps per episode).
     //Set up a loop to run for a specified number of episodes.
     //Inside each episode, run a loop for a defined number of steps or until the end of an episode (game over).
     //At each step, let the agent choose an action, execute it in the environment, and provide feedback (reward, next state) to the agent.
@@ -43,13 +42,6 @@ public class TrainingManager {
         }
         return totalReward/episodes;
     }
-
-    //Agent-Environment Interaction
-    //Handle interactions between the agent and the environment during training.
-    //Within the training loop, fetch the current state from the environment.
-    //Pass this state to the agent to get the action.
-    //Apply the action in the environment and get the next state and reward.
-
 
     //Evaluates the agent's performance without the learning steps.
     //Similar to the training loop, but without the learning steps (no updates to the network).
@@ -89,22 +81,8 @@ public class TrainingManager {
         return reward;
     }
 
-
-    //Implement logging and performance metrics.
-    //During training and testing, record relevant metrics such as total rewards, number of steps per episode, and any other custom metrics.
-    //Optionally, log these metrics to a file or console for later analysis.
-
-
-    //Integrate evaluation during the training process.
-    //Periodically, within the training loop, call the evaluateAgent method to test the agent's performance.
-    //This helps in monitoring the agent's learning progress and adjusting strategies if needed.
-
-
     //Implement hyperparameter tuning capabilities.
     //Allow for easy adjustment of hyperparameters like learning rate, discount factor, epsilon values, etc.
-    //Monitor the impact of these changes on the agent's performance.
-
-
     public static void main(String[] args) {
         agent = new DQNAgent(new DQNModel(267, 5, 0.01),
                 new ReplayBuffer(5000),

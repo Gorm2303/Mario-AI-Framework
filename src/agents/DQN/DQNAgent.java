@@ -22,8 +22,6 @@ import java.util.Random;
 
 public class DQNAgent implements MarioAgent {
 
-    //Declare a field for the neural network model (DQNModel).
-    //Declare a field for the replay memory (ReplayBuffer).
     private double epsilon;
     private final DQNModel model;
     private final ReplayBuffer replayBuffer;
@@ -76,7 +74,6 @@ public class DQNAgent implements MarioAgent {
             }
         }
 
-        // Select actions based on the current state using the epsilon-greedy strategy
         return selectAction(currentState);
     }
 
@@ -103,14 +100,13 @@ public class DQNAgent implements MarioAgent {
 
     private int numberOfRandomActions() {
         // Implement logic to determine the number of actions to choose randomly
-        // This could be a fixed number or could vary
         double rand = random.nextDouble();
         if (rand < 0.33) {
-            return 1; // 17% chance to choose 1 action
+            return 1;
         } else if (rand < (0.33+0.33)) {
-            return 2; // 33% chance to choose 2 actions
+            return 2;
         } else {
-            return 3; // Remaining 50% chance to choose 3 actions
+            return 3; // Remaining
         }
     }
 
@@ -190,8 +186,8 @@ public class DQNAgent implements MarioAgent {
 
         // Normalize the DataSet
         DataNormalization normalizer = new NormalizerStandardize();
-        normalizer.fit(dataSet);           // Collect the statistics (mean/stdev) from the data. This does not modify the input data
-        normalizer.transform(dataSet);     // Apply normalization to the data. This modifies the input data
+        normalizer.fit(dataSet);
+        normalizer.transform(dataSet);
 
         // Create a DataSetIterator from the DataSet
         DataSetIterator dataSetIterator = new ListDataSetIterator<>(dataSet.asList());
@@ -253,31 +249,4 @@ public class DQNAgent implements MarioAgent {
         return marioEnvironment;
     }
 
-    //The Q-value update mechanism
-    //Implement the learning algorithm (updating Q-values, handling transitions).
-    //Calculate the target Q-value using the reward and the discounted highest Q-value of the next state.
-    //Use the calculated target to train the neural network model.
-
-
-    //Integrate with the Environment Interface
-    //In essence, DQNAgent acts as the mediator that integrates the DQNModel and MarioEnvironmentInterface, handling both the input to and output from the neural network.
-
-    //Ensure that MarioEnvironmentInterface works seamlessly with your DQNModel
-    //Your DQN agent should use MarioEnvironmentInterface to process game states before feeding them into the neural network.
-    //It should also use MarioEnvironmentInterface to interpret the network's output into game actions.
-
-    //Integrate the DQNModel with MarioEnvironmentInterface
-    //Ensure that the model receives input in the correct format from MarioEnvironmentInterface.
-    //The output of the model should be appropriately processed by MarioEnvironmentInterface to generate game actions.
-
-
-
-    //Manage state transitions
-    //After each action, store the transition (state, action, reward, next state, done) in the replay buffer.
-    //Call the learn method periodically (not necessarily at every step) to update the network.
-
-    //Integrate the ReplayBuffer with your DQN agent
-    //Create an instance of ReplayBuffer.
-    //Use addExperience to store experiences after each action.
-    //Use sampleBatch during the learning process to train your neural network.
 }

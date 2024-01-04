@@ -41,9 +41,7 @@ public class MarioEnvironment {
         // Get the 2D grid observations around Mario (you can choose the level of detail)
         int[][] screenEnemiesObservation = currentModel.getScreenCompleteObservation(0,0); // Detail level
 
-        // Convert this information into a numerical format (array or tensor)
-        // Mario's position
-        // Mario's velocity
+        // Convert this information into a numerical format
         double[] gameState = new double[]{
                 marioPos[0], marioPos[1], // Mario's position
                 marioVel[0], marioVel[1], // Mario's velocity
@@ -56,7 +54,7 @@ public class MarioEnvironment {
                 getGameStatus()
         };
 
-        // Flatten the 2D arrays (screenSceneObservation and marioEnemiesObservation) and add them to gameState
+        // Flatten the 2D array and add it to gameState
         gameState = flatten2DArray(screenEnemiesObservation, gameState);
 
         currentState = gameState;
@@ -71,29 +69,6 @@ public class MarioEnvironment {
             }
         }
         return gameState;
-    }
-
-    //This method should accept the output of the neural network (e.g., an array indicating action probabilities or choices).
-    //Translate this output into a format recognized by the game, such as specific key presses or action commands.
-    public boolean[] translateActions(double[] qValues) {
-        // Array to hold which actions to take
-        boolean[] actions = new boolean[MarioActions.numberOfActions()];
-
-        double maxQValue = Double.NEGATIVE_INFINITY;
-        for (double qValue : qValues) {
-            if (qValue > maxQValue) {
-                maxQValue = qValue;
-            }
-        }
-
-        // Select the action(s) with the highest Q-value
-        for (int i = 0; i < qValues.length; i++) {
-            if (qValues[i] == maxQValue) {
-                actions[i] = true;
-            }
-        }
-
-        return actions;
     }
 
     public MarioForwardModel getCurrentModel() {
